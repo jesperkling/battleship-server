@@ -6,6 +6,7 @@ const debug = require('debug')('battleships:socket_controller');
 let io = null; // socket.io server instance
 
 const players = []
+const room = []
 
 /**
  * Handle a user connecting
@@ -13,18 +14,22 @@ const players = []
  */
 const handleConnect = function(username) {
 	debug(`${username} connected with id ${this.id} wants to join game`)
+	console.log('users in beginning:', players)
+
+	if (players.length > 1) {
+		console.log('room is full')
+		this.emit('game:full', true, (playersArray) => {
+			playersArray = players
+		})
+		return
+	}
 
 	const player = {
 		id: this.id,
 		username: username,
-		ready: false,
-		ships: {},
 	}
 
-	players[this.id] = username
 	players.push(player)
-
-	console.log(player.username)
 
 	this.broadcast.emit('username', player.username)
 }
@@ -35,40 +40,20 @@ const handleConnect = function(username) {
  */
 const handleDisconnect = function() {
 	debug(`Client ${this.id} disconnected :(`);
+
+	const userLeaving = players.find((user) => user.id === this.id)
+
+	if (userLeaving) {
+		const usernameLeaving = players.find((user) => user.id === this.id).username
+
+		if (usernameLeaving) {
+			const userIndex = players.findIndex((user) => user.id === this.id)
+			players.splice(userIndex, 1)
+
+			this.broadcast.emit('player:disconnected', true)
+		}
+	}
 }
-
-// /**
-//  * Handle clock start
-//  *
-//  */
-// const handleClockStart = function() {
-// 	debug(`Client ${this.id} wants to start the clock`);
-
-// 	// tell everyone connected to start their clocks
-// 	io.emit('clock:start')
-// }
-
-// /**
-//  * Handle clock stop
-//  *
-//  */
-// const handleClockStop = function() {
-// 	debug(`Client ${this.id} wants to stop the clock`);
-
-// 	// tell everyone connected to stop their clocks
-// 	io.emit('clock:stop')
-// }
-
-// /**
-//  * Handle clock reset
-//  *
-//  */
-// const handleClockReset = function() {
-// 	debug(`Client ${this.id} wants to reset the clock`);
-
-// 	// tell everyone connected to reset their clocks
-// 	io.emit('clock:reset')
-// }
 
 /**
  * Export controller and attach handlers to events
