@@ -6,6 +6,8 @@ const debug = require('debug')('battleships:socket_controller');
 let io = null; // socket.io server instance
 
 let players = []
+const playerOneBoats = ['81', '82', '83', '84']
+const playerTwoBoats = ['1', '2', '3', '4']
 
 /**
  * Handle a user connecting
@@ -13,21 +15,39 @@ let players = []
  */
 const handleConnect = function(username) {
 	debug(`${username} connected with id ${this.id} wants to join game`)
-	console.log('users in beginning:', players)
 
-	if (players.length <= 1) {
+	if (players.length === 0) {
 
-		const player = {
+		const playerOne = {
 			id: this.id,
+			room: 'game',
 			username: username,
+			currentPlayer: null,
 		}
-
+		this.join(playerOne.room)
 		players.push(player)
 
-		this.broadcast.emit('username', player.username)
-	} else {
-		console.log('Room is full, amount of players currently:', players)
+		io.to(playerOne.room).emit('player:profile', players)
+	} else if (players.length <= 1) {
+		
+		const playerTwo = {
+			id: this.id,
+			room: 'game',
+			username: username,
+			currentPlayer: null,
+		}
+		this.join(playerTwo.room)
+		players.push(playerTwo)
+		
+		const startingPlayer = players[Math.floor(Math.random() * players.length)]
+		startingPlayer.currentPlayer = 'user'
 
+		const secondPlayer = players.find((player) => player.currentPlayer !== 'user')
+		secondPlayer.currentPlayer = 'opponent'
+
+		io.to(playerTwo.room).emit('player:profile', players)
+		
+	} else {
 		this.emit('game:full', true, (playersArray) => {
 			playersArray = players
 		})
@@ -54,19 +74,21 @@ const handleDisconnect = function() {
 }
 
 /**
- * Handle hit
+ * Handle guess
  * 
  */
-const handleHit = function (target, username) {
-	debug(`${username} choose ${target} and it was a hit`)
+const handleGuess = function (target) {
+	console.log(`Player shot at ${target}`)
+	this.broadcast.emit('player:guessed', target)
 }
 
 /**
- * Handle miss
+ * Handle response to guess
  * 
  */
-const handleMiss = function (target, username) {
-	debug(`${username} choose ${target} and it was a miss`)
+const handleGuessResponse = function (id, boolean) {
+	console.log(`Shot response at ${id} and it's ${boolean}`)
+	this.broadcast.emit('player:guess-response', id, boolean)
 }
 
 /**
@@ -78,12 +100,13 @@ module.exports = function(socket, _io) {
 	io = _io;
 
 	debug(`Client ${socket.id} connected`)
+
 	socket.on('player:username', handleConnect)
 
 	// handle user disconnect
 	socket.on('disconnect', handleDisconnect);
 
-	socket.on('player:hit', handleHit)
+	socket.on('player:guessed', handleGuess)
 
-	socket.on('player:miss', handleMiss)
+	socket.on('player:guess-response', handleGuessResponse)
 }
