@@ -6,8 +6,6 @@ const debug = require('debug')('battleships:socket_controller');
 let io = null; // socket.io server instance
 
 let players = []
-const playerOneBoats = ['81', '82', '83', '84']
-const playerTwoBoats = ['1', '2', '3', '4']
 
 /**
  * Handle a user connecting
@@ -25,6 +23,7 @@ const handleConnect = function(username) {
 			currentPlayer: null,
 		}
 		this.join(playerOne.room)
+
 		players.push(player)
 
 		io.to(playerOne.room).emit('player:profile', players)
@@ -34,16 +33,17 @@ const handleConnect = function(username) {
 			id: this.id,
 			room: 'game',
 			username: username,
-			currentPlayer: null,
 		}
+
 		this.join(playerTwo.room)
+
 		players.push(playerTwo)
 		
 		const startingPlayer = players[Math.floor(Math.random() * players.length)]
-		startingPlayer.currentPlayer = 'user'
+		startingPlayer.myTurn = true
 
 		const secondPlayer = players.find((player) => player.currentPlayer !== 'user')
-		secondPlayer.currentPlayer = 'opponent'
+		secondPlayer.myTurn = false
 
 		io.to(playerTwo.room).emit('player:profile', players)
 		
@@ -64,13 +64,13 @@ const handleConnect = function(username) {
 const handleDisconnect = function() {
 	debug(`Client ${this.id} disconnected :(`);
 
-	if (this.id) {
-		this.broadcast.emit('player:disconnected', true)
+	const removePlayer = (id) => {
+		const removeIndex = players.findIndex((player) => player.id === id)
+		if (removeIndex !== -1) return players.splice(removeIndex, 1)[0]
 	}
 
-	delete this.id
-	players = []
-
+	const player = removePlayer(this.id)
+	if (player) io.to(player.room).emit('player:disconnected', true)
 }
 
 /**
