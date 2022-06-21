@@ -20,7 +20,7 @@ const handleConnect = function(username) {
 			id: this.id,
 			room: 'game',
 			username: username,
-			currentPlayer: null,
+			turn: true,
 		}
 		this.join(playerOne.room)
 
@@ -33,18 +33,13 @@ const handleConnect = function(username) {
 			id: this.id,
 			room: 'game',
 			username: username,
+			turn: false,
 		}
 
 		this.join(playerTwo.room)
 
 		players.push(playerTwo)
 		
-		const startingPlayer = players[Math.floor(Math.random() * players.length)]
-		startingPlayer.myTurn = true
-
-		const secondPlayer = players.find((player) => player.currentPlayer !== 'user')
-		secondPlayer.myTurn = false
-
 		io.to(playerTwo.room).emit('player:profile', players)
 		
 	} else {
@@ -66,6 +61,7 @@ const handleDisconnect = function() {
 
 	const removePlayer = (id) => {
 		const removeIndex = players.findIndex((player) => player.id === id)
+
 		if (removeIndex !== -1) return players.splice(removeIndex, 1)[0]
 	}
 
@@ -87,8 +83,16 @@ const handleGuess = function (target) {
  * 
  */
 const handleGuessResponse = function (id, boolean) {
-	console.log(`Shot response at ${id} and it's ${boolean}`)
+	console.log('shot reply', id)
 	this.broadcast.emit('player:guess-response', id, boolean)
+}
+
+/**
+ * Handle if boat sink
+ *  
+ */
+const handleSunkenBoat = function (id) {
+	this.broadcast.emit('player:boat-sunken', id)
 }
 
 /**
@@ -109,4 +113,6 @@ module.exports = function(socket, _io) {
 	socket.on('player:guessed', handleGuess)
 
 	socket.on('player:guess-response', handleGuessResponse)
+
+	socket.on('player:boat-sunken', handleSunkenBoat)
 }
