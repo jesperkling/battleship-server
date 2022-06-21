@@ -24,7 +24,7 @@ const handleConnect = function(username) {
 		}
 		this.join(playerOne.room)
 
-		players.push(player)
+		players.push(playerOne)
 
 		io.to(playerOne.room).emit('player:profile', players)
 	} else if (players.length <= 1) {
@@ -83,7 +83,7 @@ const handleGuess = function (target) {
  * 
  */
 const handleGuessResponse = function (id, boolean) {
-	console.log('shot reply', id)
+	console.log(`player shot at ${id} and it's ${boolean}`)
 	this.broadcast.emit('player:guess-response', id, boolean)
 }
 
