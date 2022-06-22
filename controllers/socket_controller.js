@@ -6,6 +6,7 @@ const debug = require('debug')('battleships:socket_controller');
 let io = null; // socket.io server instance
 
 let players = []
+let games = []
 
 /**
  * Handle a user connecting
@@ -14,42 +15,31 @@ let players = []
 const handleConnect = function(username) {
 	debug(`${username} connected with id ${this.id} wants to join game`)
 
-	if (players.length === 0) {
-
-		const playerOne = {
+	const player = {
 			id: this.id,
-			room: 'game',
 			username: username,
-			turn: true,
-		}
-		this.join(playerOne.room)
-
-		players.push(playerOne)
-
-		io.to(playerOne.room).emit('player:profile', players)
-	} else if (players.length <= 1) {
-		
-		const playerTwo = {
-			id: this.id,
-			room: 'game',
-			username: username,
-			turn: false,
+			turn: players[0] ? false : true
 		}
 
-		this.join(playerTwo.room)
+	players.push(player)
 
-		players.push(playerTwo)
+	if (players.length > 1) {
+		let game = {
+			id: 'game-' + players[0].id,
+			players,
+		}
 		
-		io.to(playerTwo.room).emit('player:profile', players)
+		games.push(game)
+
+		this.join(game.id)
+
+		io.to(game.id).emit('player:profile', game.players)
 		
+		players = []
 	} else {
-		this.emit('game:full', true, (playersArray) => {
-			playersArray = players
-		})
-
-		delete this.id
-		return
+		this.join('game-' + this.id)
 	}
+	console.log('games when connect:', games)
 }
 
 /**
@@ -59,14 +49,33 @@ const handleConnect = function(username) {
 const handleDisconnect = function() {
 	debug(`Client ${this.id} disconnected :(`);
 
-	const removePlayer = (id) => {
-		const removeIndex = players.findIndex((player) => player.id === id)
+	const game = games.find((game) => {
+		const playerActive = game.players.some((player) => player.id)
+		
+		if (playerActive) return game
+	})
 
-		if (removeIndex !== -1) return players.splice(removeIndex, 1)[0]
+	const removePlayer = (id) => {
+		const removeIndex = game.players.findIndex((player) => player.id === id)
+
+		if (removeIndex !== -1) return game.players.splice(removeIndex, 1)[0]
 	}
 
-	const player = removePlayer(this.id)
-	if (player) io.to(player.room).emit('player:disconnected', true)
+	const removeGame = (id) => {
+		const removeActiveGame = games.findIndex((emptyGame) => emptyGame.id === id)
+
+		if (removeActiveGame !== -1) return games.splice(removeActiveGame, 1)[0]
+	}
+
+	if (game) {
+		removePlayer(this.id)
+
+		if (game.players.length === 0) {
+			removeGame(game.id)
+		}
+
+		io.to(game.id).emit('player:disconnected', true)
+	} 
 }
 
 /**
@@ -74,8 +83,15 @@ const handleDisconnect = function() {
  * 
  */
 const handleGuess = function (target) {
-	console.log(`Player shot at ${target}`)
-	this.broadcast.emit('player:guessed', target)
+	const game = games.find((game) => {
+		const playerActive = game.players.some((player) => player.id === this.id)
+
+		if (playerActive) return game
+	})
+
+	if (game) {
+		this.broadcast.to(game.id).emit('player:guessed', target)
+	}
 }
 
 /**
@@ -83,16 +99,29 @@ const handleGuess = function (target) {
  * 
  */
 const handleGuessResponse = function (id, boolean) {
-	console.log(`player shot at ${id} and it's ${boolean}`)
-	this.broadcast.emit('player:guess-response', id, boolean)
+	const game = games.find((game) => {
+		const playerActive = game.players.some((player) => player.id === this.id)
+
+		if (playerActive) return game
+	})
+
+	if (game) {
+		this.broadcast.to(game.id).emit('player:guess-response', id, boolean)
+	}
 }
 
 /**
- * Handle if boat sink
- *  
+ * Handle response to guess
+ * 
  */
-const handleSunkenBoat = function (id) {
-	this.broadcast.emit('player:boat-sunken', id)
+const handleBoatSunken = function (id) {
+	const game = games.find((game) => {
+		const playerActive = game.players.some((player) => player.id === this.id)
+
+		if (playerActive) return game
+	})
+	
+	this.broadcast.to(game.id).emit('player:boat-sunken', id)
 }
 
 /**
@@ -114,5 +143,5 @@ module.exports = function(socket, _io) {
 
 	socket.on('player:guess-response', handleGuessResponse)
 
-	socket.on('player:boat-sunken', handleSunkenBoat)
+	socket.on('player:boat-sunken', handleBoatSunken)
 }
