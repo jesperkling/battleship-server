@@ -16,10 +16,10 @@ const handleConnect = function(username) {
 	debug(`${username} connected with id ${this.id} wants to join game`)
 
 	const player = {
-			id: this.id,
-			username: username,
-			turn: players[0] ? false : true
-		}
+		id: this.id,
+		username: username,
+		turn: players[0] ? false : true,
+	}
 
 	players.push(player)
 
@@ -50,7 +50,7 @@ const handleDisconnect = function() {
 	debug(`Client ${this.id} disconnected :(`);
 
 	const game = games.find((game) => {
-		const playerActive = game.players.some((player) => player.id)
+		const playerActive = game.players.some((player) => player.id === this.id)
 		
 		if (playerActive) return game
 	})
