@@ -46,6 +46,18 @@ const handleGameSearch = function () {
 
 	io.in(`game${currentRoomId}`).emit("hello world")
 	debug("Number of players in room", io.sockets.adapter.rooms.get(`game${currentRoomId}`).size)
+
+	const id = Object.keys(rooms[currentRoomId].users)
+	console.log(id)
+
+	function getRandomInteger(min, max) {
+		return Math.floor(Math.random() * (max - min + 1) + min);
+	}
+
+	let turn = getRandomInteger(0, 1)
+	console.log(id[turn], turn)
+	io.in(`game${currentRoomId}`).emit("playerTurn", id[turn]);
+
 }
 
 
@@ -65,6 +77,10 @@ module.exports = function(socket, _io) {
 	socket.on("disconnecting", () => {
 		const idOfRoom = getRoomKey(socket)
 		debug("ID of room:", idOfRoom)
+
+		if (idOfRoom) {
+			io.in(rooms[idOfRoom].id).emit("userLeft", "Opponent left room");
+		}
 
 		debug("Room to disconnect:", rooms[idOfRoom]?.id)
 
@@ -87,4 +103,19 @@ module.exports = function(socket, _io) {
 	})
 
 	socket.on("joinGame", handleGameSearch)
+
+	socket.on("coordinates", (coordinates) => {
+		const idOfRoom = getRoomKey(socket)
+
+		if (idOfRoom) {
+			socket.to(rooms[idOfRoom].id).emit("coordinatesFromServer", coordinates)
+		}
+	})
+
+	socket.on("madeMove", (message) => {
+		const idOfRoom = getRoomKey(socket)
+		if (idOfRoom) {
+			socket.to(rooms[idOfRoom]).emit("changeTurn", message)
+		}
+	})
 }
