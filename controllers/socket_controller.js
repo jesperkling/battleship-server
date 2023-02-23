@@ -11,6 +11,7 @@ let currentRoomId = 0
 let emptyRoomExists = false
 
 const getRoomKey = (socket) => {
+
 	const roomOfUser = Object.values(rooms).find(room => {
 		return room.users.hasOwnProperty(socket.id)
 	})
@@ -27,35 +28,50 @@ const handleGameSearch = function () {
 	emptyRoomExists = Object.values(rooms).find(room => Object.keys(room.users).length < 2)
 
 	if (Object.keys(rooms).length === 0 || !emptyRoomExists) {
+
 		this.join(`game${nextRoomId}`)
+
 		rooms[nextRoomId] = {
 			id: `game${nextRoomId}`,
 			users: {},
 		}
+
 		currentRoomId = nextRoomId
+
 		nextRoomId++
+
 	} else {
+
 		this.join(`game${currentRoomId}`)
+
 		io.in(`game${currentRoomId}`).emit("gameFound")
 	}
 
 	debug("Specific room", JSON.stringify(rooms[currentRoomId].users))
+
 	rooms[currentRoomId].users[this.id] = `user${nextUserId}`
+
 	nextUserId++
+
 	debug(rooms)
 
-	io.in(`game${currentRoomId}`).emit("hello world")
+	io.in(`game${currentRoomId}`).emit("HiRoom")
+
 	debug("Number of players in room", io.sockets.adapter.rooms.get(`game${currentRoomId}`).size)
 
 	const id = Object.keys(rooms[currentRoomId].users)
+
 	console.log(id)
 
 	function getRandomInteger(min, max) {
+
 		return Math.floor(Math.random() * (max - min + 1) + min);
 	}
 
 	let turn = getRandomInteger(0, 1)
+
 	console.log(id[turn], turn)
+
 	io.in(`game${currentRoomId}`).emit("playerTurn", id[turn]);
 
 }
@@ -112,10 +128,20 @@ module.exports = function(socket, _io) {
 		}
 	})
 
-	socket.on("madeMove", (message) => {
+	socket.on("madeMyMove", (message) => {
 		const idOfRoom = getRoomKey(socket)
 		if (idOfRoom) {
 			socket.to(rooms[idOfRoom]).emit("changeTurn", message)
+		}
+	})
+
+	socket.on("gameOver", () => {
+		debug("Game over")
+
+		const idOfRoom = getRoomKey(socket)
+		if (idOfRoom) {
+			socket.to(rooms[idOfRoom].id).emit("win")
+			io.in(rooms[idOfRoom].id).emit("matchIsOver")
 		}
 	})
 }
