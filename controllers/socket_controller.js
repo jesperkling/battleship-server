@@ -112,6 +112,15 @@ module.exports = function(socket, _io) {
 		}
 	})
 
+	socket.on("resultOfHit", (result) => {
+		const idOfRoom = getRoomKey(socket);
+
+		if (idOfRoom) {
+			socket.to(rooms[idOfRoom].id).emit("resultOfHit", result)
+			socket.to(rooms[idOfRoom].id).emit("shipsLeft", result)
+		}
+	})
+
 	socket.on("madeMyMove", (message) => {
 		const idOfRoom = getRoomKey(socket)
 		if (idOfRoom) {
@@ -121,11 +130,13 @@ module.exports = function(socket, _io) {
 	
 	socket.on("gameOver", () => {
 		debug("Game over")
-
 		const idOfRoom = getRoomKey(socket)
+	
 		if (idOfRoom) {
 			socket.to(rooms[idOfRoom].id).emit("win")
 			io.in(rooms[idOfRoom].id).emit("matchIsOver")
+			io.socketsLeave(rooms[idOfRoom].id)
+			delete rooms[idOfRoom]
 		}
 	})
 }
