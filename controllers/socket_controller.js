@@ -124,7 +124,7 @@ module.exports = function(socket, _io) {
 	socket.on("madeMyMove", (message) => {
 		const idOfRoom = getRoomKey(socket)
 		if (idOfRoom) {
-			socket.to(rooms[idOfRoom]).emit("changeTurn", message)
+			socket.to(rooms[idOfRoom].id).emit("changeTurn", message)
 		}
 	})
 	
